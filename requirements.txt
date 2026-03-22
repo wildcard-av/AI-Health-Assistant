@@ -1,0 +1,7 @@
+# Pin versions from `pip install --upgrade` (2026-03); bump with `pip install -U -r requirements.txt`
+streamlit==1.55.0
+langchain-core==1.2.20
+langchain==1.2.13
+langchain-ollama==1.0.1
+langchain-google-genai==4.2.1
+pydantic-settings==2.13.1

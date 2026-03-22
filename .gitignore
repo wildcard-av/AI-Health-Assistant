@@ -1,0 +1,54 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Environment and secrets (never commit)
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Testing / typing / coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Streamlit
+.streamlit/secrets.toml
+
+# OS / editors
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE (optional — uncomment if you do not want these in the repo)
+# .idea/
+# .vscode/
