@@ -9,7 +9,7 @@ from langchain_core.messages import HumanMessage
 from chains import build_diet_chain, build_fitness_chain, build_qa_chain
 from config import get_settings
 from llm_factory import get_chat_model
-from prompts import format_user_profile
+from prompts import diet_calorie_goal_block, format_user_profile
 
 DISCLAIMER = (
     "This app is for **informational purposes only**. It is not medical, nutrition, or "
@@ -74,10 +74,10 @@ def _profile_payload(
     }
 
 
-def _profile_complete(
-    fitness_goal: str,
-) -> bool:
-    return bool(fitness_goal and fitness_goal.strip())
+def _profile_complete(fitness_goal: str, constraints: str) -> bool:
+    return bool(
+        fitness_goal and fitness_goal.strip() and constraints and constraints.strip()
+    )
 
 
 def _try_build_llm(
@@ -143,14 +143,33 @@ def main() -> None:
         dietary_preference = st.selectbox("Dietary preference", options=DIETARY_PREFS, index=0)
         fitness_goal = st.text_input("Fitness goal", placeholder="e.g. lose fat, run 5K, build strength")
         constraints = st.text_area(
-            "Optional constraints",
-            placeholder="Allergies, injuries, equipment, time limits, foods to avoid…",
+            "Constraints (required)",
+            placeholder="Required: allergies, injuries, equipment, time limits, foods to avoid, schedule, etc.",
             height=80,
         )
+        want_calorie_target = st.checkbox(
+            "Set a daily calorie target (optional)",
+            value=False,
+            help="If enabled, the diet plan will aim near this many kcal per day (rough estimates).",
+        )
+        daily_calorie_target_kcal: int | None = None
+        if want_calorie_target:
+            daily_calorie_target_kcal = int(
+                st.number_input(
+                    "Target kcal per day (approx.)",
+                    min_value=800,
+                    max_value=6000,
+                    value=2000,
+                    step=50,
+                )
+            )
 
-        profile_ok = _profile_complete(fitness_goal)
+        profile_ok = _profile_complete(fitness_goal, constraints)
         if not profile_ok:
-            st.warning("Enter a **fitness goal** to enable plan generation.")
+            st.warning(
+                "Enter a **fitness goal** and **constraints** (allergies, injuries, limits, etc.) "
+                "to enable plan generation."
+            )
 
         gen_disabled = not profile_ok or not model_name.strip()
         if st.button("Generate personalized plans", type="primary", disabled=gen_disabled):
@@ -163,6 +182,13 @@ def main() -> None:
                 fitness_goal,
                 constraints,
             )
+            diet_payload = {
+                **payload,
+                "daily_calorie_target": diet_calorie_goal_block(
+                    use_target=want_calorie_target,
+                    target_kcal=daily_calorie_target_kcal,
+                ),
+            }
             llm_d, err_d = _try_build_llm(provider, model_name, temperature)
             llm_f, err_f = _try_build_llm(provider, model_name, temperature)
             if err_d or err_f:
@@ -174,7 +200,7 @@ def main() -> None:
                 try:
                     with st.spinner("Generating diet and fitness plans…"):
                         with ThreadPoolExecutor(max_workers=2) as pool:
-                            f_diet = pool.submit(diet_chain.invoke, payload)
+                            f_diet = pool.submit(diet_chain.invoke, diet_payload)
                             f_fit = pool.submit(fitness_chain.invoke, payload)
                             future_kind = {f_diet: "diet", f_fit: "fitness"}
                             errors: list[str] = []
@@ -238,6 +264,7 @@ def main() -> None:
                         dietary_preference=dietary_preference,
                         fitness_goal=fitness_goal,
                         constraints=constraints,
+                        daily_calorie_target_kcal=daily_calorie_target_kcal,
                     )
                     qa_input = {
                         "user_profile": user_profile,
